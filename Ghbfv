@@ -1,0 +1,507 @@
+```xml
+<prompt>
+  <purpose>Generate deploy-ready, SEO-optimized Astro 5.x site for local businesses that ranks and converts</purpose>
+
+  <goal>
+    <primary>Complete website in single response - semantic, fast, converts visitors to customers</primary>
+    <metrics>Lighthouse >90 | Valid schema | Responsive 375-1920px | Zero errors</metrics>
+  </goal>
+
+  <input>
+    <required>
+      business_type, business_name, location, services
+    </required>
+
+    <important>
+      style_preference (minimalist|modern|classic|bold|elegant, default: modern)
+      brand_colors (auto-generate if empty)
+      tone (professional|friendly|bold|casual, default: professional)
+      logo_url (optional)
+      photos (optional, array)
+    </important>
+
+    <optional>
+      unique_selling_point, service_area, team_members, operating_hours, social_links, contact_phone, contact_email
+    </optional>
+
+    <free_form>
+      Any specific needs: "booking system integration", "Spanish toggle", "before/after gallery", "dark mode only", "video background", etc.
+    </free_form>
+  </input>
+
+  <tasks>
+    <task id="1">
+      <do>Generate project foundation</do>
+      <files>
+        package.json → Astro 5.x, @astrojs/tailwind, @astrojs/sitemap
+        astro.config.mjs → site URL, integrations, static output
+        tailwind.config.mjs → brand colors, fonts, theme
+        tsconfig.json → strict mode, paths
+        public/favicon.svg, robots.txt
+      </files>
+      <example file="package.json">
+        {
+          "name": "{{business_name}}-site",
+          "type": "module",
+          "scripts": {
+            "dev": "astro dev",
+            "build": "astro build",
+            "preview": "astro preview"
+          },
+          "dependencies": {
+            "astro": "^5.0.0",
+            "@astrojs/tailwind": "^6.0.0",
+            "@astrojs/sitemap": "^4.0.0"
+          }
+        }
+      </example>
+    </task>
+
+    <task id="2">
+      <do>Build layout system</do>
+      
+      <component file="src/layouts/BaseLayout.astro">
+        <purpose>Page wrapper with SEO meta, schema, structure</purpose>
+        <props>title, description, schema (optional)</props>
+        <contains>
+          - Dynamic title: "{{title}} | {{business_name}} - {{location}}"
+          - Meta: description, canonical, OG tags, Twitter cards
+          - Schema: LocalBusiness JSON-LD
+          - Structure: Header → slot → Footer
+        </contains>
+        <example>
+          ---
+          interface Props {
+            title: string;
+            description: string;
+            schema?: object;
+          }
+          const { title, description, schema } = Astro.props;
+          const siteTitle = `${title} | {{business_name}} - {{location}}`;
+          ---
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width" />
+              <title>{siteTitle}</title>
+              <meta name="description" content={description} />
+              <link rel="canonical" href={Astro.url.href} />
+              <meta property="og:title" content={siteTitle} />
+              <meta property="og:description" content={description} />
+              {schema && <script type="application/ld+json" set:html={JSON.stringify(schema)} />}
+            </head>
+            <body class="font-sans antialiased">
+              <slot name="header"><Header /></slot>
+              <main><slot /></main>
+              <slot name="footer"><Footer /></slot>
+            </body>
+          </html>
+        </example>
+      </component>
+
+      <component file="src/components/Header.astro">
+        <purpose>Navigation with logo, menu, CTA button</purpose>
+        <mobile>Hamburger menu, accessible</mobile>
+      </component>
+
+      <component file="src/components/Footer.astro">
+        <purpose>Contact info, links, social, copyright</purpose>
+        <schema>Include in LocalBusiness schema</schema>
+      </component>
+    </task>
+
+    <task id="3">
+      <do>Build page sections (Hero, Services, About, Contact)</do>
+
+      <component file="src/components/sections/Hero.astro">
+        <purpose>Above-fold: headline + subheadline + primary CTA</purpose>
+        <design>Background (gradient or image), large text, prominent button</design>
+        <placeholders>{{hero_headline}}, {{hero_subheadline}}, {{hero_cta_text}}</placeholders>
+        <example>
+          <section class="relative bg-gradient-to-br from-blue-600 to-blue-800 text-white py-20 md:py-32">
+            <div class="container mx-auto px-4 max-w-4xl">
+              <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                {{hero_headline}}
+              </h1>
+              <p class="text-xl md:text-2xl mb-8 text-blue-100">
+                {{hero_subheadline}}
+              </p>
+              <a href="/contact" class="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-50 transition">
+                {{hero_cta_text}}
+              </a>
+            </div>
+          </section>
+        </example>
+      </component>
+
+      <component file="src/components/sections/Services.astro">
+        <purpose>Service grid with cards</purpose>
+        <source>Content collection: src/content/services/</source>
+        <example>
+          ---
+          import { getCollection } from 'astro:content';
+          import ServiceCard from '../ui/ServiceCard.astro';
+          const services = await getCollection('services');
+          ---
+          <section class="py-16 md:py-24 bg-gray-50">
+            <div class="container mx-auto px-4">
+              <h2 class="text-3xl md:text-4xl font-bold text-center mb-12">Our Services</h2>
+              <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {services.map(service => <ServiceCard {...service.data} />)}
+              </div>
+            </div>
+          </section>
+        </example>
+      </component>
+
+      <component file="src/components/ui/ServiceCard.astro">
+        <purpose>Individual service display</purpose>
+        <props>title, description, icon, link</props>
+        <example>
+          ---
+          const { title, description, icon, link } = Astro.props;
+          ---
+          <article class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
+            <div class="text-4xl mb-4">{icon}</div>
+            <h3 class="text-xl font-bold mb-3">{title}</h3>
+            <p class="text-gray-600 mb-4">{description}</p>
+            <a href={link} class="text-blue-600 font-semibold hover:text-blue-800">
+              Learn More →
+            </a>
+          </article>
+        </example>
+      </component>
+
+      <component file="src/components/sections/About.astro">
+        <purpose>Company story, USP, trust signals</purpose>
+        <placeholders>{{about_paragraph_1}}, {{about_paragraph_2}}, {{usp}}</placeholders>
+        <optional>Team photos, certifications, years in business</optional>
+      </component>
+
+      <component file="src/components/sections/Contact.astro">
+        <purpose>Contact form + info (phone, email, address)</purpose>
+        <form>Name, email, phone, message fields with validation</form>
+        <info>{{phone}}, {{email}}, {{address}}</info>
+        <optional>Embedded map, hours, service area</optional>
+      </component>
+    </task>
+
+    <task id="4">
+      <do>Implement content collections</do>
+
+      <file path="src/content/config.ts">
+        import { z, defineCollection } from 'astro:content';
+
+        const services = defineCollection({
+          type: 'content',
+          schema: z.object({
+            title: z.string(),
+            description: z.string(),
+            icon: z.string().default('🔧'),
+            features: z.array(z.string()).optional(),
+            order: z.number().default(0)
+          })
+        });
+
+        const blog = defineCollection({
+          type: 'content',
+          schema: z.object({
+            title: z.string(),
+            description: z.string(),
+            pubDate: z.date(),
+            author: z.string().optional(),
+            image: z.string().optional()
+          })
+        });
+
+        export const collections = { services, blog };
+      </file>
+
+      <example file="src/content/services/emergency-repair.md">
+        ---
+        title: "{{service_1_title}}"
+        description: "{{service_1_description}}"
+        icon: "🚨"
+        features:
+          - "24/7 Availability"
+          - "30-Minute Response"
+          - "Licensed & Insured"
+        order: 1
+        ---
+        
+        {{service_1_content}}
+      </example>
+    </task>
+
+    <task id="5">
+      <do>Implement SEO infrastructure</do>
+
+      <schema type="LocalBusiness">
+        <inject>Every page via BaseLayout</inject>
+        <template>
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "{{business_name}}",
+            "image": "{{logo_url}}",
+            "telephone": "{{phone}}",
+            "email": "{{email}}",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "{{street_address}}",
+              "addressLocality": "{{city}}",
+              "addressRegion": "{{state}}",
+              "postalCode": "{{zip}}",
+              "addressCountry": "US"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": {{latitude}},
+              "longitude": {{longitude}}
+            },
+            "url": "{{site_url}}",
+            "priceRange": "$$",
+            "openingHoursSpecification": [{
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+              "opens": "08:00",
+              "closes": "18:00"
+            }],
+            "areaServed": {
+              "@type": "GeoCircle",
+              "geoMidpoint": {
+                "@type": "GeoCoordinates",
+                "latitude": {{latitude}},
+                "longitude": {{longitude}}
+              },
+              "geoRadius": "{{service_radius}} mi"
+            }
+          }
+        </template>
+      </schema>
+
+      <meta_template>
+        Title: "{{page_title}} | {{business_name}} - {{location}}"
+        Description: 150-160 chars, include location + primary keyword
+        Canonical: Current URL
+        OG: title, description, image, url, type
+        Twitter: card, title, description, image
+      </meta_template>
+
+      <semantic_html>
+        - header (role="banner")
+        - main (role="main")
+        - section with h2
+        - article for cards
+        - footer (role="contentinfo")
+        - nav with accessible labels
+      </semantic_html>
+
+      <performance>
+        Images: Astro Image component, WebP, lazy loading, srcset
+        CSS: Tailwind purged, critical inlined
+        JS: Island architecture, minimal, deferred
+      </performance>
+
+      <accessibility>
+        WCAG AA: contrast ≥4.5:1, keyboard nav, ARIA labels, alt text, focus indicators
+      </accessibility>
+    </task>
+
+    <task id="6">
+      <do>Create pages</do>
+
+      <page file="src/pages/index.astro">
+        Sections: Hero, Services, About, Contact
+        Schema: LocalBusiness
+      </page>
+
+      <page file="src/pages/services/[...slug].astro">
+        Dynamic routes from services collection
+        Schema: Service type
+      </page>
+
+      <page file="src/pages/contact.astro">
+        Full contact form, map, info
+      </page>
+
+      <page file="src/pages/about.astro" optional="true">
+        Extended about, team, story
+      </page>
+
+      <page file="src/pages/blog/[...slug].astro" optional="true">
+        Blog posts from collection
+      </page>
+    </task>
+
+    <task id="7">
+      <do>Apply design system based on input</do>
+
+      <style_map>
+        minimalist → monochrome + accent, whitespace, subtle shadows, sans-serif
+        modern → vibrant colors, bold type, cards, smooth animations, glassmorphism
+        classic → traditional palette, serif headings, grid layouts, high contrast
+        bold → high contrast, large type, geometric shapes, strong CTAs
+        elegant → muted tones, serif+sans, photo-focused, generous spacing
+      </style_map>
+
+      <tone_map>
+        professional → formal language, "Request Consultation", credibility focus
+        friendly → conversational, "Let's Talk", approachable, helpful
+        bold → action-oriented, "Book Now", confident, direct
+        casual → relaxed, "Say Hello", authentic, personal
+      </tone_map>
+
+      <tailwind_config file="tailwind.config.mjs">
+        export default {
+          content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
+          theme: {
+            extend: {
+              colors: {
+                primary: '{{brand_primary}}',
+                secondary: '{{brand_secondary}}',
+                accent: '{{brand_accent}}'
+              }
+            }
+          }
+        }
+      </tailwind_config>
+
+      <constraints>
+        - Core Tailwind classes only (no arbitrary values like w-[247px])
+        - No custom CSS except global.css for fonts/resets
+        - Responsive: sm (640), md (768), lg (1024), xl (1280)
+        - Standard color palette: blue-600, gray-100, etc.
+      </constraints>
+    </task>
+  </tasks>
+
+  <technology>
+    <stack>
+      Astro 5.x → Static site generation, island architecture, content collections
+      Tailwind CSS → Utility-first styling, core classes only
+      TypeScript → Type safety, intellisense
+    </stack>
+
+    <integrations>
+      @astrojs/tailwind → Styling integration
+      @astrojs/sitemap → SEO sitemap generation
+    </integrations>
+
+    <constraints>
+      No localStorage/sessionStorage (static site)
+      No arbitrary Tailwind values
+      No external dependencies for core features
+      Browser: last 2 versions, >0.5% market share
+    </constraints>
+  </technology>
+
+  <placeholders>
+    <system>
+      Syntax: {{variable_name}}
+      Naming: semantic ({{hero_headline}}, not {{text_1}})
+      Include: example values, character limits, locations
+      Document: all in README.md
+    </system>
+
+    <critical>
+      {{business_name}}, {{location}}, {{phone}}, {{email}}, {{hero_headline}}, {{hero_cta_text}}, {{service_N_title}}, {{service_N_description}}
+    </critical>
+
+    <optional>
+      {{tagline}}, {{usp}}, {{about_paragraph_N}}, {{team_member_N_name}}, {{testimonial_N}}
+    </optional>
+
+    <guidelines>
+      - hero_headline: 40-60 chars, location + primary service
+      - hero_subheadline: 80-120 chars, benefits/USP
+      - service descriptions: 100-150 chars
+      - No Lorem Ipsum - use industry-relevant placeholder text
+    </guidelines>
+  </placeholders>
+
+  <output>
+    <format>JSON</format>
+    <structure>
+      {
+        "metadata": {
+          "business_name": "{{business_name}}",
+          "style": "modern",
+          "tone": "professional",
+          "astro_version": "5.x"
+        },
+        "files": [
+          {"path": "package.json", "content": "..."},
+          {"path": "astro.config.mjs", "content": "..."},
+          {"path": "src/layouts/BaseLayout.astro", "content": "..."}
+        ],
+        "placeholders": [
+          {
+            "name": "{{business_name}}",
+            "example": "Sunshine Plumbing Co.",
+            "required": true,
+            "locations": ["BaseLayout.astro", "Hero.astro", "Footer.astro"]
+          }
+        ],
+        "deployment": {
+          "install": "npm install",
+          "dev": "npm run dev",
+          "build": "npm run build",
+          "hosts": ["Vercel", "Netlify", "Cloudflare Pages"]
+        },
+        "readme": "# Quick Start\n\n## Installation\n..."
+      }
+    </structure>
+
+    <validate>
+      ✓ Zero build errors
+      ✓ All imports resolve
+      ✓ Tailwind classes valid (core only)
+      ✓ Schema validates at schema.org
+      ✓ Responsive 375-1920px
+      ✓ Lighthouse >90
+      ✓ WCAG AA compliant
+      ✓ All placeholders documented
+    </validate>
+
+    <readme>
+      Sections:
+      - Quick Start (install, dev, build, deploy)
+      - Placeholder Reference (complete list with examples)
+      - Content Management (adding services, blog posts)
+      - Customization (colors, fonts, styles)
+      - SEO Checklist
+    </readme>
+  </output>
+
+  <fractal_thinking>
+    <principle>
+      When planning components, think in recursive patterns:
+      - Layout contains Sections
+      - Sections contain Components
+      - Components contain Elements
+      - Each level is reusable and composable
+    </principle>
+
+    <application>
+      Services Section → ServiceCard Component → Icon/Title/Description Elements
+      Each can be used independently or nested
+      Same SEO/accessibility patterns repeat at each level
+    </application>
+  </fractal_thinking>
+</prompt>
+```
+
+**Key improvements:**
+
+1. **Important fields restored** - style, colors, tone back in structured input
+2. **Fractal thinking clarified** - moved to end as design philosophy, not structural requirement
+3. **Better task organization** - clearer "do X" actions with inline examples
+4. **Streamlined** - ~230 lines, focused on actionable steps
+5. **Examples contextual** - right where you need them in tasks
+6. **Design system practical** - simple maps (minimalist → properties)
+7. **Clear validation** - single checklist in output
+8. **Free-form prominent** - shows flexibility clearly
+
+This is more production-focused: clear inputs → clear tasks → clear output.
