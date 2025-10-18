@@ -1,0 +1,793 @@
+# ⚡ N8N PREVIEW WORKFLOW - READY TO PASTE
+
+## **WORKFLOW NODES (Linear Flow)**
+
+---
+
+### **NODE 1: Webhook Trigger**
+```
+Type: Webhook
+Method: POST
+Path: /generate-preview
+Response: Immediately
+
+Expected Input:
+{
+  "business_name": "Mario's Pizza",
+  "business_type": "Restaurant",
+  "location": {
+    "city": "Brooklyn",
+    "state": "NY",
+    "address": "123 Main St"
+  },
+  "services": ["Dine-in", "Delivery", "Catering"],
+  "contact": {
+    "phone": "555-1234",
+    "email": "info@mariospizza.com"
+  },
+  "tone": "friendly"
+}
+```
+
+---
+
+### **NODE 2: Set Variables**
+```
+Type: Set
+Name: Prepare Data
+
+Fields:
+- business_slug: {{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}
+- location_string: {{ $json.location.city }}, {{ $json.location.state }}
+- primary_color: #C1272D (default, can make dynamic later)
+- secondary_color: #FFF8DC
+```
+
+---
+
+### **NODE 3: Claude Structure Generation** (PARALLEL START)
+```
+Type: HTTP Request
+Method: POST
+URL: https://openrouter.ai/api/v1/chat/completions
+Authentication: Bearer Token
+Headers:
+  Authorization: Bearer {{ $env.OPENROUTER_API_KEY }}
+  Content-Type: application/json
+
+Body:
+{
+  "model": "anthropic/claude-sonnet-4",
+  "messages": [
+    {
+      "role": "user",
+      "content": "SEE PROMPT BELOW ⬇️"
+    }
+  ],
+  "temperature": 0.7
+}
+
+OPTIONS:
+- Timeout: 120000 (2 minutes)
+- Retry: 1 time on fail
+```
+
+**CLAUDE PROMPT (paste in content field):**
+
+```xml
+<task>
+  <goal>Generate production-ready Astro site structure for local business</goal>
+  
+  <business>
+    <name>{{ $('Set Variables').item.json.business_name }}</name>
+    <type>{{ $('Set Variables').item.json.business_type }}</type>
+    <location>{{ $('Set Variables').item.json.location_string }}</location>
+    <services>{{ $('Set Variables').item.json.services }}</services>
+    <contact>{{ $('Set Variables').item.json.contact }}</contact>
+    <slug>{{ $('Set Variables').item.json.business_slug }}</slug>
+  </business>
+  
+  <constraints>
+    <framework>Astro 4.x with TypeScript</framework>
+    <styling>Tailwind CSS - ONLY core utility classes (no arbitrary values)</styling>
+    <seo>LocalBusiness schema on every page, semantic HTML5</seo>
+    <content>Use {{double_brace}} placeholders for content injection</content>
+    <colors>
+      <primary>{{ $('Set Variables').item.json.primary_color }}</primary>
+      <secondary>{{ $('Set Variables').item.json.secondary_color }}</secondary>
+    </colors>
+  </constraints>
+  
+  <beliefs>
+    <principle>Local businesses need clear CTAs: call button, directions, contact form</principle>
+    <principle>Mobile-first: 70% of traffic is mobile</principle>
+    <principle>SEO is mandatory: schema markup, semantic HTML, meta tags</principle>
+    <principle>Fast loading: no heavy dependencies, optimize images</principle>
+    <principle>Accessible by default: proper heading hierarchy, alt text, ARIA labels</principle>
+  </beliefs>
+  
+  <file_structure>
+    Required files (complete, working code):
+    
+    1. package.json
+       - Astro 4.x
+       - @astrojs/tailwind
+       - tailwindcss
+       - No other dependencies
+    
+    2. astro.config.mjs
+       - Tailwind integration
+       - Site URL: https://{{slug}}.netlify.app
+       - sitemap: true
+    
+    3. tailwind.config.mjs
+       - Extend colors with primary/secondary
+       - Default Tailwind config otherwise
+    
+    4. tsconfig.json
+       - Standard Astro TypeScript config
+    
+    5. src/layouts/BaseLayout.astro
+       - SEO meta tags (title, description, og tags)
+       - LocalBusiness JSON-LD schema
+       - Responsive viewport
+       - Google Fonts (optional, 1-2 fonts max)
+    
+    6. src/components/Header.astro
+       - Logo/business name
+       - Navigation (Home, Services, About, Blog, Contact)
+       - Mobile menu (hamburger)
+       - Call button prominent
+    
+    7. src/components/Footer.astro
+       - Contact info
+       - Hours
+       - Social links (placeholders)
+       - Copyright
+    
+    8. src/components/Hero.astro
+       - Large hero section
+       - {{hero_title}} and {{hero_subtitle}}
+       - CTA buttons (primary + secondary)
+       - Background image placeholder
+    
+    9. src/components/ServiceCard.astro
+       - Icon (use emoji or simple SVG)
+       - Service title
+       - Service description
+       - "Learn more" link
+    
+    10. src/pages/index.astro
+        - Hero section
+        - Services overview (3-4 cards)
+        - About snippet
+        - CTA section
+        - Use placeholders: {{hero_title}}, {{service_1_title}}, etc.
+    
+    11. src/pages/about.astro
+        - {{about_content}} placeholder
+        - Team section structure
+        - Mission/values
+    
+    12. src/pages/services/[...slug].astro
+        - Dynamic service pages
+        - Service detail layout
+        - Related services
+    
+    13. src/pages/blog/[...slug].astro
+        - Blog post layout
+        - Article schema
+        - Related posts
+    
+    14. src/pages/blog/index.astro
+        - Blog list
+        - Pagination structure
+    
+    15. src/pages/contact.astro
+        - Contact form (HTML only, no backend)
+        - Map placeholder
+        - Contact info
+        - Hours
+    
+    16. src/content/config.ts
+        - Define collections: blog, services
+        - Schema with title, description, date, content
+    
+    17. public/robots.txt
+        - Allow all
+    
+    18. README.md
+        - Setup instructions
+  </file_structure>
+  
+  <placeholder_strategy>
+    Use these exact placeholder names for content injection:
+    
+    Homepage:
+    - {{hero_title}}
+    - {{hero_subtitle}}
+    - {{about_snippet}}
+    - {{service_1_title}}, {{service_1_description}}
+    - {{service_2_title}}, {{service_2_description}}
+    - {{service_3_title}}, {{service_3_description}}
+    
+    Blog posts: Will be separate markdown files
+    Service pages: Will be separate markdown files
+    
+    Images:
+    - {{hero_image}}
+    - {{about_image}}
+    - {{service_1_image}}
+    
+    Business data (already provided, use directly):
+    - {{business_name}}
+    - {{business_phone}}
+    - {{business_email}}
+    - {{business_address}}
+    - {{business_city}}
+  </placeholder_strategy>
+  
+  <seo_requirements>
+    Every page must have:
+    1. Unique <title> tag (50-60 chars)
+    2. Meta description (150-160 chars)
+    3. LocalBusiness JSON-LD schema
+    4. Semantic HTML (header, main, nav, footer, article, section)
+    5. Proper heading hierarchy (h1 → h2 → h3)
+    6. Alt text placeholders for images
+    
+    Schema.org LocalBusiness properties:
+    - @type: "LocalBusiness" or specific type (Restaurant, etc)
+    - name, address, telephone, url
+    - openingHours (placeholder format)
+    - priceRange ($ to $$$$)
+    - geo coordinates (placeholder)
+  </seo_requirements>
+  
+  <design_guidelines>
+    - Modern, clean, professional
+    - Generous whitespace
+    - Clear visual hierarchy
+    - Prominent CTAs (call, contact, directions)
+    - Mobile-responsive breakpoints (sm, md, lg, xl)
+    - Consistent spacing (use Tailwind spacing scale)
+    - Accessible color contrast
+    - Fast-loading (no animations unless CSS-only)
+  </design_guidelines>
+  
+  <output_format>
+    Return ONLY valid JSON (no markdown, no explanation):
+    {
+      "files": [
+        {
+          "path": "package.json",
+          "content": "... complete file content ..."
+        },
+        {
+          "path": "src/layouts/BaseLayout.astro",
+          "content": "... complete file content ..."
+        }
+        // ... all files
+      ],
+      "content_schema": {
+        "blog": {
+          "fields": ["title", "description", "date", "author", "image", "content"],
+          "count": 3
+        },
+        "services": {
+          "fields": ["title", "description", "price", "duration", "content"],
+          "count": 3
+        }
+      },
+      "placeholders": [
+        "{{hero_title}}",
+        "{{hero_subtitle}}",
+        // ... all placeholders used
+      ]
+    }
+    
+    CRITICAL: 
+    - Files must be complete and working
+    - No TODO comments
+    - No placeholder code
+    - All imports must resolve
+    - Tailwind classes must be valid core utilities
+    - Syntax must be valid
+  </output_format>
+  
+  <validation_checklist>
+    Before returning, verify:
+    ✓ All 18+ files included
+    ✓ No syntax errors
+    ✓ All imports have corresponding files
+    ✓ Tailwind classes are valid (no custom/arbitrary)
+    ✓ LocalBusiness schema on all pages
+    ✓ Placeholders consistently named
+    ✓ Mobile responsive (uses breakpoints)
+    ✓ Semantic HTML throughout
+    ✓ No external dependencies beyond listed
+  </validation_checklist>
+</task>
+```
+
+---
+
+### **NODE 4: Unsplash Images** (PARALLEL with Claude)
+```
+Type: HTTP Request
+Method: GET
+URL: https://api.unsplash.com/search/photos
+Authentication: None
+Headers:
+  Authorization: Client-ID {{ $env.UNSPLASH_ACCESS_KEY }}
+
+Query Parameters:
+- query: {{ $('Set Variables').item.json.business_type }} professional interior
+- per_page: 5
+- orientation: landscape
+
+OPTIONS:
+- Continue on fail: true (images not critical)
+```
+
+---
+
+### **NODE 5: Wait for Both** (Join node)
+```
+Type: Merge
+Mode: Wait
+```
+
+---
+
+### **NODE 6: Parse Claude Response**
+```
+Type: Code (JavaScript)
+
+const response = $input.item.json;
+const claudeData = JSON.parse(response.choices[0].message.content);
+
+return {
+  json: {
+    files: claudeData.files,
+    schema: claudeData.content_schema,
+    placeholders: claudeData.placeholders
+  }
+};
+```
+
+---
+
+### **NODE 7: Parse Unsplash Response**
+```
+Type: Code (JavaScript)
+
+const photos = $input.item.json.results || [];
+const images = photos.slice(0, 5).map((photo, i) => ({
+  [`image_${i}`]: photo.urls.regular,
+  [`image_${i}_alt`]: photo.alt_description || `${$('Set Variables').item.json.business_type} image ${i+1}`,
+  [`image_${i}_credit`]: photo.user.name
+}));
+
+return { json: Object.assign({}, ...images) };
+```
+
+---
+
+### **NODE 8: Gemini Flash Content**
+```
+Type: HTTP Request
+Method: POST
+URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+Authentication: None
+Headers:
+  x-goog-api-key: {{ $env.GEMINI_API_KEY }}
+  Content-Type: application/json
+
+Body:
+{
+  "contents": [{
+    "parts": [{
+      "text": "SEE FLASH PROMPT BELOW ⬇️"
+    }]
+  }],
+  "generationConfig": {
+    "temperature": 0.8,
+    "maxOutputTokens": 8000
+  }
+}
+```
+
+**FLASH PROMPT:**
+
+```xml
+<task>
+  <goal>Generate engaging content for local business website matching predefined schema</goal>
+  
+  <business>
+    <name>{{ $('Set Variables').item.json.business_name }}</name>
+    <type>{{ $('Set Variables').item.json.business_type }}</type>
+    <location>{{ $('Set Variables').item.json.location_string }}</location>
+    <services>{{ $('Set Variables').item.json.services }}</services>
+    <tone>{{ $('Set Variables').item.json.tone }}</tone>
+  </business>
+  
+  <schema>
+    {{ $('Parse Claude Response').item.json.schema }}
+  </schema>
+  
+  <requirements>
+    Generate content for:
+    
+    1. Blog Posts (exactly 3)
+       - Length: 800-1000 words each
+       - Topics: Educational, locally relevant, service-related
+       - Structure: Hook (100 words) → Practical advice → CTA
+       - Mention location 3-5 times naturally
+       - Include real tips, not generic fluff
+       
+    2. Service Pages (exactly 3)
+       - Length: 400-600 words each
+       - Structure: What → Why → How → Benefits → Pricing hint
+       - Mention location 2-3 times
+       - Specific to this business type
+       
+    3. Homepage Content
+       - Hero title (8-12 words, compelling)
+       - Hero subtitle (15-25 words, value prop)
+       - About snippet (100-150 words)
+       
+    4. About Page
+       - Full about content (500-700 words)
+       - Business story, mission, team
+       - Authentic, not corporate
+  </requirements>
+  
+  <content_guidelines>
+    Tone: {{ $('Set Variables').item.json.tone }}
+    
+    ✓ Write like a human, not a robot
+    ✓ Use "we" and "you" (personal)
+    ✓ Include specific local references
+    ✓ Be helpful and educational
+    ✓ No jargon or corporate speak
+    ✓ Short paragraphs (2-4 sentences)
+    ✓ Active voice
+    ✓ Conversational but professional
+    
+    ✗ No keyword stuffing
+    ✗ No "lorem ipsum" or placeholders
+    ✗ No generic "we're the best" claims
+    ✗ No overpromising
+  </content_guidelines>
+  
+  <output_format>
+    Return valid JSON:
+    {
+      "homepage": {
+        "hero_title": "...",
+        "hero_subtitle": "...",
+        "about_snippet": "..."
+      },
+      "about_page": {
+        "content": "... full markdown ..."
+      },
+      "blog_posts": [
+        {
+          "title": "...",
+          "description": "...",
+          "date": "2025-01-15",
+          "content": "... markdown content ..."
+        }
+        // exactly 3 posts
+      ],
+      "services": [
+        {
+          "title": "...",
+          "description": "...",
+          "content": "... markdown content ..."
+        }
+        // exactly 3 services
+      ]
+    }
+    
+    NO markdown code blocks, just pure JSON.
+  </output_format>
+</task>
+```
+
+---
+
+### **NODE 9: Parse Flash Response**
+```
+Type: Code (JavaScript)
+
+const response = $input.item.json;
+const content = JSON.parse(response.candidates[0].content.parts[0].text);
+
+return { json: content };
+```
+
+---
+
+### **NODE 10: Merge Content into Files**
+```
+Type: Code (JavaScript)
+
+const files = $('Parse Claude Response').item.json.files;
+const content = $('Parse Flash Response').item.json;
+const images = $('Parse Unsplash Response').item.json;
+const business = $('Set Variables').item.json;
+
+// Replace placeholders in all files
+files.forEach(file => {
+  let fileContent = file.content;
+  
+  // Business data
+  fileContent = fileContent.replace(/{{business_name}}/g, business.business_name);
+  fileContent = fileContent.replace(/{{business_phone}}/g, business.contact.phone);
+  fileContent = fileContent.replace(/{{business_email}}/g, business.contact.email);
+  fileContent = fileContent.replace(/{{business_address}}/g, business.location.address);
+  fileContent = fileContent.replace(/{{business_city}}/g, business.location.city);
+  
+  // Homepage content
+  fileContent = fileContent.replace(/{{hero_title}}/g, content.homepage.hero_title);
+  fileContent = fileContent.replace(/{{hero_subtitle}}/g, content.homepage.hero_subtitle);
+  fileContent = fileContent.replace(/{{about_snippet}}/g, content.homepage.about_snippet);
+  
+  // Services
+  content.services.forEach((service, i) => {
+    fileContent = fileContent.replace(new RegExp(`{{service_${i+1}_title}}`, 'g'), service.title);
+    fileContent = fileContent.replace(new RegExp(`{{service_${i+1}_description}}`, 'g'), service.description);
+  });
+  
+  // Images
+  Object.keys(images).forEach(key => {
+    fileContent = fileContent.replace(new RegExp(`{{${key}}}`, 'g'), images[key]);
+  });
+  
+  file.content = fileContent;
+});
+
+// Add content collection files
+const contentFiles = [];
+
+// Blog posts
+content.blog_posts.forEach((post, i) => {
+  contentFiles.push({
+    path: `src/content/blog/post-${i+1}.md`,
+    content: `---
+title: "${post.title}"
+description: "${post.description}"
+date: ${post.date}
+---
+
+${post.content}`
+  });
+});
+
+// Services
+content.services.forEach((service, i) => {
+  contentFiles.push({
+    path: `src/content/services/service-${i+1}.md`,
+    content: `---
+title: "${service.title}"
+description: "${service.description}"
+---
+
+${service.content}`
+  });
+});
+
+// About page content file
+contentFiles.push({
+  path: `src/content/about.md`,
+  content: content.about_page.content
+});
+
+return {
+  json: {
+    files: [...files, ...contentFiles],
+    business_slug: business.business_slug
+  }
+};
+```
+
+---
+
+### **NODE 11: Create GitHub Repo**
+```
+Type: HTTP Request
+Method: POST
+URL: https://api.github.com/user/repos
+Authentication: Bearer Token
+Headers:
+  Authorization: token {{ $env.GITHUB_TOKEN }}
+  Content-Type: application/json
+
+Body:
+{
+  "name": "{{ $('Merge Content').item.json.business_slug }}-preview",
+  "description": "Preview site for {{ $('Set Variables').item.json.business_name }}",
+  "private": false,
+  "auto_init": true
+}
+```
+
+---
+
+### **NODE 12: Push Files to GitHub**
+```
+Type: Code (JavaScript)
+
+// This needs to loop through files
+// n8n limitation: must batch upload
+
+const files = $('Merge Content').item.json.files;
+const repo = $('Create GitHub Repo').item.json.full_name;
+const token = $env.GITHUB_TOKEN;
+
+// Group files in batches of 10
+const batches = [];
+for (let i = 0; i < files.length; i += 10) {
+  batches.push(files.slice(i, i + 10));
+}
+
+return batches.map(batch => ({
+  json: { batch, repo, token }
+}));
+```
+
+---
+
+### **NODE 13: Upload File Batch** (Loop)
+```
+Type: HTTP Request (Loop over batches)
+Method: PUT
+URL: https://api.github.com/repos/{{ $json.repo }}/contents/{{ $json.file.path }}
+Headers:
+  Authorization: token {{ $json.token }}
+  Content-Type: application/json
+
+Body:
+{
+  "message": "Add {{ $json.file.path }}",
+  "content": "{{ Buffer.from($json.file.content).toString('base64') }}"
+}
+
+Loop over: $('Push Files to GitHub').item.json.batch
+Wait: 2 seconds between requests
+```
+
+---
+
+### **NODE 14: Create Netlify Site**
+```
+Type: HTTP Request
+Method: POST
+URL: https://api.netlify.com/api/v1/sites
+Authentication: Bearer Token
+Headers:
+  Authorization: Bearer {{ $env.NETLIFY_TOKEN }}
+  Content-Type: application/json
+
+Body:
+{
+  "name": "{{ $('Merge Content').item.json.business_slug }}-preview",
+  "repo": {
+    "provider": "github",
+    "repo": "{{ $('Create GitHub Repo').item.json.full_name }}"
+  },
+  "build_settings": {
+    "cmd": "npm run build",
+    "dir": "dist"
+  }
+}
+```
+
+---
+
+### **NODE 15: Wait for Deploy**
+```
+Type: Code (JavaScript) - Loop with delay
+
+let attempts = 0;
+const maxAttempts = 30; // 5 minutes max
+const siteId = $('Create Netlify Site').item.json.id;
+
+// This would need a loop node in n8n
+// Poll every 10 seconds for deploy status
+
+return { json: { site_id: siteId, check_url: `https://api.netlify.com/api/v1/sites/${siteId}/deploys` } };
+```
+
+---
+
+### **NODE 16: Get Deploy Status** (Loop - every 10s)
+```
+Type: HTTP Request
+Method: GET
+URL: {{ $('Wait for Deploy').item.json.check_url }}
+Headers:
+  Authorization: Bearer {{ $env.NETLIFY_TOKEN }}
+
+If status = "ready": Exit loop
+If attempts > 30: Exit with timeout error
+Else: Wait 10s, retry
+```
+
+---
+
+### **NODE 17: Return Success**
+```
+Type: Respond to Webhook
+Response Code: 200
+Body:
+{
+  "status": "success",
+  "preview_url": "{{ $('Create Netlify Site').item.json.url }}",
+  "github_repo": "{{ $('Create GitHub Repo').item.json.html_url }}",
+  "pages": ["home", "about", "services", "blog", "contact"],
+  "blog_posts": 3,
+  "generation_time": "{{ (Date.now() - $('Webhook').item.json.timestamp) / 1000 }}s",
+  "message": "Preview site ready! Show to client for approval."
+}
+```
+
+---
+
+## **ERROR HANDLING NODES**
+
+Add these connected to each main node:
+
+### **On Claude Fail:**
+```
+Type: If
+Condition: {{ $('Claude Structure Generation').item.statusCode }} !== 200
+
+Then: Retry Claude (max 1 time)
+Else: Continue
+```
+
+### **On Any Critical Fail:**
+```
+Type: Respond to Webhook
+Response Code: 500
+Body:
+{
+  "status": "error",
+  "stage": "{{ $runIndex }}",
+  "message": "{{ $error.message }}",
+  "next_steps": "Contact support with this error"
+}
+```
+
+---
+
+## **ENVIRONMENT VARIABLES NEEDED**
+
+Set in n8n Settings → Variables:
+
+```
+OPENROUTER_API_KEY=sk-or-...
+GEMINI_API_KEY=AI...
+GITHUB_TOKEN=ghp_...
+NETLIFY_TOKEN=nf...
+UNSPLASH_ACCESS_KEY=...
+```
+
+---
+
+## **HOW TO INSERT INTO N8N**
+
+1. Create new workflow
+2. Add nodes in order (1 → 17)
+3. Connect nodes linearly
+4. For parallel (nodes 3 & 4): Both connect to node 5 (Merge)
+5. Add error handlers branching from main flow
+6. Set environment variables
+7. Test with webhook
+
+**Total nodes: ~20 (including error handling)**
+
+**Ready to paste and configure!** 🚀
