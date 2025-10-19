@@ -1,0 +1,192 @@
+{
+  "name": "Website Generator - Claude Code Only",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-preview",
+        "responseMode": "lastNode"
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "business_slug",
+              "value": "={{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}"
+            },
+            {
+              "name": "location_string",
+              "value": "={{ $json.location.city }}, {{ $json.location.state }}"
+            },
+            {
+              "name": "work_dir",
+              "value": "=/tmp/{{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}-{{ Date.now() }}"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.unsplash.com/search/photos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Webhook').item.json.business_type }} professional interior"
+            },
+            {
+              "name": "per_page",
+              "value": "10"
+            },
+            {
+              "name": "orientation",
+              "value": "landscape"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Get Unsplash Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const images = $input.item.json.results || [];\nconst imageList = images.slice(0, 10).map((img, i) => \n  `Image ${i+1}:\\n  URL: ${img.urls.regular}\\n  Alt: ${img.alt_description || 'professional ' + $('Webhook').item.json.business_type + ' image'}\\n  Credit: Photo by ${img.user.name} on Unsplash (${img.user.links.html})`\n).join('\\n\\n');\n\nreturn { \n  json: { \n    image_list: imageList,\n    image_count: images.length\n  } \n};"
+      },
+      "id": "4",
+      "name": "Format Images",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/user/repos",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $('Set Variables').item.json.business_slug + '-preview', description: 'Preview website for ' + $('Webhook').item.json.business_name, private: false, auto_init: true } }}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Create GitHub Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "command": "=sleep 3 && git clone {{ $('Create GitHub Repo').item.json.clone_url }} {{ $('Set Variables').item.json.work_dir }}"
+      },
+      "id": "6",
+      "name": "Clone Repo",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd {{ $('Set Variables').item.json.work_dir }} && claude-code \"Generate a complete, production-ready Astro 4.x website.\n\n=== BUSINESS INFORMATION ===\nName: {{ $('Webhook').item.json.business_name }}\nType: {{ $('Webhook').item.json.business_type }}\nLocation: {{ $('Set Variables').item.json.location_string }}\nFull Address: {{ $('Webhook').item.json.location.address }}, {{ $('Webhook').item.json.location.city }}, {{ $('Webhook').item.json.location.state }}\nServices: {{ $('Webhook').item.json.services.join(', ') }}\nPhone: {{ $('Webhook').item.json.contact.phone }}\nEmail: {{ $('Webhook').item.json.contact.email }}\nTone: {{ $('Webhook').item.json.tone }}\n\n=== AVAILABLE IMAGES ===\n{{ $('Format Images').item.json.image_list }}\n\n=== REQUIREMENTS ===\n\n1. PROJECT STRUCTURE:\n   - package.json (Astro 4.x, @astrojs/tailwind, tailwindcss)\n   - astro.config.mjs (with Tailwind integration, sitemap enabled)\n   - tailwind.config.mjs (extend with brand colors)\n   - tsconfig.json (standard Astro config)\n   - .gitignore (node_modules, dist, .env)\n\n2. LAYOUTS:\n   - src/layouts/BaseLayout.astro:\n     * SEO meta tags (title, description, og tags)\n     * LocalBusiness JSON-LD schema with all business data\n     * Responsive viewport\n     * Link to Tailwind CSS\n\n3. COMPONENTS (src/components/):\n   - Header.astro: Logo, navigation (Home, About, Services, Blog, Contact), mobile hamburger menu, prominent call button\n   - Footer.astro: Contact info, business hours, social links placeholders, copyright\n   - Hero.astro: Large hero with background image, headline, subtitle, CTA buttons\n   - ServiceCard.astro: Icon/emoji, title, description, learn more link\n   - CTASection.astro: Call-to-action section with phone/contact buttons\n\n4. PAGES (src/pages/):\n   - index.astro: Hero, services overview (3-4 cards), about snippet, testimonials structure, CTA\n   - about.astro: Full about page with story, mission, team section\n   - services.astro: All services overview\n   - services/[slug].astro: Dynamic service detail pages\n   - blog/index.astro: Blog list with pagination\n   - blog/[slug].astro: Individual blog post layout with article schema\n   - contact.astro: Contact form (HTML only), map embed placeholder, hours, contact info\n\n5. CONTENT COLLECTIONS:\n   - src/content/config.ts: Define blog and services collections\n   - src/content/services/: Create 3 service markdown files (400-600 words each)\n   - src/content/blog/: Create 3 blog posts (800-1000 words each)\n\n6. STYLING:\n   - Use Tailwind CSS with core utility classes only\n   - Mobile-first responsive design\n   - Modern, clean, professional aesthetic\n   - Use brand colors in tailwind config\n   - Generous whitespace, clear hierarchy\n\n7. IMAGES:\n   - Use the provided Unsplash images throughout the site\n   - Distribute them across: hero, about page, service pages, blog posts\n   - Include proper alt text and Unsplash attribution in footer\n\n8. CONTENT:\n   - Write real, engaging, specific content (NO placeholders, NO lorem ipsum)\n   - Homepage hero: Compelling headline and value proposition\n   - About page: Authentic business story (500-700 words)\n   - Service pages: Detailed descriptions with benefits\n   - Blog posts: Educational, locally relevant topics (mention location 3-5 times per post)\n   - Use {{ $('Webhook').item.json.tone }} tone throughout\n\n9. SEO:\n   - LocalBusiness schema on every page with:\n     * @type: LocalBusiness (or specific type like Restaurant)\n     * name, address, telephone, email, url\n     * geo coordinates (approximate for location)\n     * openingHours (create reasonable hours)\n     * priceRange ($ to $$$$, appropriate for business type)\n   - Unique title and meta description per page\n   - Semantic HTML5 (header, nav, main, article, section, footer)\n   - Proper heading hierarchy (h1 → h2 → h3)\n   - Alt text for all images\n\n10. ADDITIONAL FILES:\n    - public/robots.txt: Allow all, sitemap reference\n    - README.md: Setup instructions\n\n11. GIT WORKFLOW:\n    - Commit each major component/page as you create it\n    - Use descriptive commit messages\n    - Push all commits when complete\n\nMake this a professional, modern website that looks like it cost thousands of dollars. The content should be engaging and specific to this business - not generic template copy.\""
+      },
+      "id": "7",
+      "name": "Claude Code - Generate Complete Site",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd {{ $('Set Variables').item.json.work_dir }} && git push origin main"
+      },
+      "id": "8",
+      "name": "Push to GitHub",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.netlify.com/api/v1/sites",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $('Set Variables').item.json.business_slug + '-preview', repo: { provider: 'github', repo: $('Create GitHub Repo').item.json.full_name }, build_settings: { cmd: 'npm run build', dir: 'dist' } } }}",
+        "options": {}
+      },
+      "id": "9",
+      "name": "Deploy to Netlify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf {{ $('Set Variables').item.json.work_dir }}"
+      },
+      "id": "10",
+      "name": "Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'success', preview_url: $('Deploy to Netlify').item.json.url, github_repo: $('Create GitHub Repo').item.json.html_url, business_name: $('Webhook').item.json.business_name, images_used: $('Format Images').item.json.image_count, message: 'Preview website generated successfully!' } }}"
+      },
+      "id": "11",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set Variables", "type": "main", "index": 0}]]
+    },
+    "Set Variables": {
+      "main": [[{"node": "Get Unsplash Images", "type": "main", "index": 0}]]
+    },
+    "Get Unsplash Images": {
+      "main": [[{"node": "Format Images", "type": "main", "index": 0}]]
+    },
+    "Format Images": {
+      "main": [[{"node": "Create GitHub Repo", "type": "main", "index": 0}]]
+    },
+    "Create GitHub Repo": {
+      "main": [[{"node": "Clone Repo", "type": "main", "index": 0}]]
+    },
+    "Clone Repo": {
+      "main": [[{"node": "Claude Code - Generate Complete Site", "type": "main", "index": 0}]]
+    },
+    "Claude Code - Generate Complete Site": {
+      "main": [[{"node": "Push to GitHub", "type": "main", "index": 0}]]
+    },
+    "Push to GitHub": {
+      "main": [[{"node": "Deploy to Netlify", "type": "main", "index": 0}]]
+    },
+    "Deploy to Netlify": {
+      "main": [[{"node": "Cleanup", "type": "main", "index": 0}]]
+    },
+    "Cleanup": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  }
+}
