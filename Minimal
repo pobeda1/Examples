@@ -1,0 +1,120 @@
+{
+  "name": "Website Preview Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-preview",
+        "responseMode": "lastNode"
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "business_slug",
+              "value": "={{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}"
+            },
+            {
+              "name": "location_string",
+              "value": "={{ $json.location.city }}, {{ $json.location.state }}"
+            }
+          ]
+        }
+      },
+      "id": "set-variables-2",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.unsplash.com/search/photos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Webhook').item.json.business_type }} professional"
+            },
+            {
+              "name": "per_page",
+              "value": "5"
+            }
+          ]
+        }
+      },
+      "id": "unsplash-3",
+      "name": "Unsplash",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "anthropic/claude-sonnet-4"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [{ role: 'user', content: 'Generate complete Astro site for: ' + $('Webhook').item.json.business_name }] }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "claude-4",
+      "name": "Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [{ parts: [{ text: 'Generate 3 blog posts for ' + $('Webhook').item.json.business_name }] }] }}"
+            }
+          ]
+        }
+      },
+      "id": "gemini-5",
+      "name": "Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set Variables", "type": "main", "index": 0}]]
+    },
+    "Set Variables": {
+      "main": [[
+        {"node": "Unsplash", "type": "main", "index": 0},
+        {"node": "Claude", "type": "main", "index": 0},
+        {"node": "Gemini", "type": "main", "index": 0}
+      ]]
+    }
+  }
+}
