@@ -1,0 +1,369 @@
+```json
+{
+  "name": "Website Preview Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-preview",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "business_slug",
+              "value": "={{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}"
+            },
+            {
+              "name": "location_string",
+              "value": "={{ $json.location.city }}, {{ $json.location.state }}"
+            },
+            {
+              "name": "primary_color",
+              "value": "#C1272D"
+            },
+            {
+              "name": "secondary_color",
+              "value": "#FFF8DC"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-variables-2",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.unsplash.com/search/photos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Webhook').item.json.business_type }} professional interior"
+            },
+            {
+              "name": "per_page",
+              "value": "5"
+            },
+            {
+              "name": "orientation",
+              "value": "landscape"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "unsplash-3",
+      "name": "Unsplash Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "unsplash_credentials",
+          "name": "Unsplash Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"anthropic/claude-sonnet-4\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"<task>\\n<goal>Generate complete production-ready Astro website</goal>\\n\\n<business>\\n<name>{{ $('Webhook').item.json.business_name }}</name>\\n<type>{{ $('Webhook').item.json.business_type }}</type>\\n<location>{{ $('Set Variables').item.json.location_string }}</location>\\n<services>{{ $('Webhook').item.json.services }}</services>\\n<contact>\\n  <phone>{{ $('Webhook').item.json.contact.phone }}</phone>\\n  <email>{{ $('Webhook').item.json.contact.email }}</email>\\n  <address>{{ $('Webhook').item.json.location.address }}</address>\\n</contact>\\n<tone>{{ $('Webhook').item.json.tone }}</tone>\\n</business>\\n\\n<images>\\n{{ $('Unsplash Images').item.json.results.map((img, i) => `Image ${i}: ${img.urls.regular} (${img.alt_description})`).join('\\\\n') }}\\n</images>\\n\\n<requirements>\\n<framework>Astro 4.x with TypeScript</framework>\\n<styling>Tailwind CSS - ONLY core utility classes</styling>\\n<content>Complete content for all pages (no placeholders)</content>\\n<seo>\\n  - LocalBusiness schema on every page\\n  - Semantic HTML5\\n  - Unique meta tags per page\\n  - Sitemap generation\\n</seo>\\n<pages>\\n  1. Homepage (hero, services overview, about snippet, CTA)\\n  2. About page (full story, mission, team structure)\\n  3. Services page (overview of all services)\\n  4. Individual service pages (3 services, detailed)\\n  5. Blog index (list view)\\n  6. Contact page (form HTML, map placeholder, hours)\\n</pages>\\n<components>\\n  - Header (navigation, mobile menu, call button)\\n  - Footer (contact info, hours, links)\\n  - Hero (large, image background)\\n  - ServiceCard (icon, title, description, CTA)\\n  - CTA sections\\n</components>\\n</requirements>\\n\\n<file_structure>\\nGenerate these complete files:\\n\\n1. package.json (Astro 4.x, Tailwind, minimal deps)\\n2. astro.config.mjs (Tailwind integration, sitemap)\\n3. tailwind.config.mjs (brand colors)\\n4. tsconfig.json\\n5. src/layouts/BaseLayout.astro (SEO, schema)\\n6. src/components/Header.astro\\n7. src/components/Footer.astro\\n8. src/components/Hero.astro\\n9. src/components/ServiceCard.astro\\n10. src/components/CTA.astro\\n11. src/pages/index.astro\\n12. src/pages/about.astro\\n13. src/pages/services.astro\\n14. src/pages/services/[slug].astro (dynamic)\\n15. src/pages/blog/index.astro\\n16. src/pages/blog/[slug].astro (dynamic)\\n17. src/pages/contact.astro\\n18. src/content/config.ts\\n19. src/content/services/service-1.md\\n20. src/content/services/service-2.md\\n21. src/content/services/service-3.md\\n22. public/robots.txt\\n23. README.md\\n</file_structure>\\n\\n<content_guidelines>\\n- Write real, engaging content (not generic)\\n- Mention location naturally 3-5 times per page\\n- Use provided images\\n- Tone: {{ $('Webhook').item.json.tone }}\\n- Service pages: 400-600 words each\\n- About page: 500-700 words\\n- Homepage: compelling hero, clear value prop\\n- NO placeholders, NO \\\"lorem ipsum\\\"\\n- NO TODO comments\\n</content_guidelines>\\n\\n<seo_implementation>\\nEvery page must include:\\n1. Unique <title> (50-60 chars)\\n2. Meta description (150-160 chars)\\n3. LocalBusiness JSON-LD schema with:\\n   - @type: LocalBusiness (or specific type)\\n   - name, address, telephone\\n   - geo coordinates (use approximate)\\n   - openingHours\\n   - priceRange\\n4. Semantic HTML (header, nav, main, article, footer)\\n5. Proper heading hierarchy (h1 → h2 → h3)\\n6. Alt text for all images\\n</seo_implementation>\\n\\n<design_principles>\\n- Modern, clean, professional\\n- Mobile-first responsive\\n- Clear visual hierarchy\\n- Prominent CTAs (call, contact, directions)\\n- Generous whitespace\\n- Accessible (WCAG AA contrast)\\n- Fast-loading (no heavy deps)\\n</design_principles>\\n\\n<output_format>\\nReturn ONLY valid JSON (no markdown, no explanation):\\n{\\n  \\\"files\\\": [\\n    {\\n      \\\"path\\\": \\\"package.json\\\",\\n      \\\"content\\\": \\\"... complete file content ...\\\"\\n    },\\n    {\\n      \\\"path\\\": \\\"src/pages/index.astro\\\",\\n      \\\"content\\\": \\\"... complete file content ...\\\"\\n    }\\n    // ... all files\\n  ]\\n}\\n\\nCRITICAL:\\n- All files must be complete and working\\n- NO placeholders or TODOs\\n- All imports must resolve\\n- Tailwind classes must be valid core utilities\\n- Content must be written and engaging\\n- Syntax must be valid\\n</output_format>\\n\\n<validation_checklist>\\nBefore returning, verify:\\n✓ All 23+ files included\\n✓ No syntax errors\\n✓ All imports have corresponding files\\n✓ Tailwind classes are valid\\n✓ LocalBusiness schema on all pages\\n✓ Real content (no placeholders)\\n✓ Mobile responsive\\n✓ Semantic HTML throughout\\n✓ SEO meta tags on all pages\\n</validation_checklist>\\n</task>\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 16000\n}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "claude-4",
+      "name": "Claude Generate Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openrouter_credentials",
+          "name": "OpenRouter Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"<task>\\n<goal>Generate 3 engaging blog posts for local business</goal>\\n\\n<business>\\n<name>{{ $('Webhook').item.json.business_name }}</name>\\n<type>{{ $('Webhook').item.json.business_type }}</type>\\n<location>{{ $('Set Variables').item.json.location_string }}</location>\\n<services>{{ $('Webhook').item.json.services }}</services>\\n<tone>{{ $('Webhook').item.json.tone }}</tone>\\n</business>\\n\\n<requirements>\\nGenerate exactly 3 blog posts:\\n\\n<length>800-1000 words each</length>\\n<topics>Educational, locally relevant, service-related</topics>\\n<structure>\\n  - Hook (first 100 words, compelling)\\n  - Practical advice (main body)\\n  - Local context (mention location 3-5 times)\\n  - CTA (encourage booking/contacting)\\n</structure>\\n<quality>\\n  - Real tips and advice (not generic)\\n  - Conversational but professional\\n  - Use \\\"we\\\" and \\\"you\\\"\\n  - Short paragraphs (2-4 sentences)\\n  - Include subheadings\\n  - NO keyword stuffing\\n  - NO \\\"lorem ipsum\\\"\\n</quality>\\n</requirements>\\n\\n<output_format>\\nReturn ONLY valid JSON (no markdown, no code blocks):\\n{\\n  \\\"blog_posts\\\": [\\n    {\\n      \\\"title\\\": \\\"...\\\",\\n      \\\"description\\\": \\\"150-160 char meta description\\\",\\n      \\\"date\\\": \\\"2025-01-15\\\",\\n      \\\"author\\\": \\\"{{ $('Webhook').item.json.business_name }} Team\\\",\\n      \\\"content\\\": \\\"... full markdown content with ## headings ...\\\"\\n    },\\n    // exactly 3 posts\\n  ]\\n}\\n</output_format>\\n\\n<example_topics>\\nFor restaurant: \\\"10 Wine Pairing Tips\\\", \\\"Seasonal Menu Guide\\\", \\\"Brooklyn's Food Scene\\\"\\nFor lawyer: \\\"Estate Planning Basics\\\", \\\"Small Business Legal Tips\\\", \\\"NY State Law Changes\\\"\\nFor gym: \\\"Home Workout Routines\\\", \\\"Nutrition for Beginners\\\", \\\"Brooklyn Fitness Events\\\"\\n\\nChoose appropriate topics for {{ $('Webhook').item.json.business_type }}.\\n</example_topics>\\n</task>\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.8,\n    \"maxOutputTokens\": 8000\n  }\n}",
+        "options": {}
+      },
+      "id": "gemini-5",
+      "name": "Gemini Blog Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 500],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "gemini_credentials",
+          "name": "Gemini Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse responses\nconst claudeResponse = $('Claude Generate Site').item.json;\nconst geminiResponse = $('Gemini Blog Posts').item.json;\n\n// Extract files from Claude\nlet claudeFiles;\ntry {\n  const content = claudeResponse.choices[0].message.content;\n  claudeFiles = JSON.parse(content).files;\n} catch (error) {\n  throw new Error('Failed to parse Claude response: ' + error.message);\n}\n\n// Extract blog posts from Gemini\nlet blogPosts;\ntry {\n  const content = geminiResponse.candidates[0].content.parts[0].text;\n  // Remove markdown code blocks if present\n  const cleanContent = content.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n  blogPosts = JSON.parse(cleanContent).blog_posts;\n} catch (error) {\n  throw new Error('Failed to parse Gemini response: ' + error.message);\n}\n\n// Add blog post markdown files\nblogPosts.forEach((post, i) => {\n  const slug = post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');\n  claudeFiles.push({\n    path: `src/content/blog/${slug}.md`,\n    content: `---\ntitle: \"${post.title}\"\ndescription: \"${post.description}\"\ndate: ${post.date}\nauthor: \"${post.author}\"\n---\n\n${post.content}`\n  });\n});\n\nconst businessSlug = $('Set Variables').item.json.business_slug;\n\nreturn {\n  json: {\n    files: claudeFiles,\n    repo_name: `${businessSlug}-preview`,\n    business_name: $('Webhook').item.json.business_name,\n    file_count: claudeFiles.length\n  }\n};"
+      },
+      "id": "combine-6",
+      "name": "Combine Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/user/repos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.repo_name }}\",\n  \"description\": \"Preview website for {{ $json.business_name }}\",\n  \"private\": false,\n  \"auto_init\": true\n}",
+        "options": {}
+      },
+      "id": "create-repo-7",
+      "name": "Create GitHub Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "github_credentials",
+          "name": "GitHub Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get repo info and files\nconst repoFullName = $('Create GitHub Repo').item.json.full_name;\nconst files = $('Combine Files').item.json.files;\n\n// Return array of files to upload\nreturn files.map(file => ({\n  json: {\n    repo: repoFullName,\n    path: file.path,\n    content: Buffer.from(file.content).toString('base64'),\n    message: `Add ${file.path}`\n  }\n}));"
+      },
+      "id": "prepare-upload-8",
+      "name": "Prepare File Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/contents/{{ $json.path }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "PUT",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": \"{{ $json.message }}\",\n  \"content\": \"{{ $json.content }}\"\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "upload-files-9",
+      "name": "Upload Files to GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "github_credentials",
+          "name": "GitHub Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.netlify.com/api/v1/sites",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $('Combine Files').item.json.repo_name }}\",\n  \"repo\": {\n    \"provider\": \"github\",\n    \"repo\": \"{{ $('Create GitHub Repo').item.json.full_name }}\"\n  },\n  \"build_settings\": {\n    \"cmd\": \"npm run build\",\n    \"dir\": \"dist\"\n  }\n}",
+        "options": {}
+      },
+      "id": "deploy-netlify-10",
+      "name": "Deploy to Netlify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1850, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "netlify_credentials",
+          "name": "Netlify Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"preview_url\": \"{{ $('Deploy to Netlify').item.json.url }}\",\n  \"github_repo\": \"{{ $('Create GitHub Repo').item.json.html_url }}\",\n  \"business_name\": \"{{ $('Combine Files').item.json.business_name }}\",\n  \"pages\": [\"home\", \"about\", \"services\", \"blog\", \"contact\"],\n  \"files_generated\": {{ $('Combine Files').item.json.file_count }},\n  \"blog_posts\": 3,\n  \"message\": \"Preview site generated! Show to client for approval.\"\n}",
+        "options": {}
+      },
+      "id": "respond-11",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Variables": {
+      "main": [
+        [
+          {
+            "node": "Unsplash Images",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Claude Generate Site",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gemini Blog Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unsplash Images": {
+      "main": [
+        [
+          {
+            "node": "Claude Generate Site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Generate Site": {
+      "main": [
+        [
+          {
+            "node": "Combine Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Blog Posts": {
+      "main": [
+        [
+          {
+            "node": "Combine Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Files": {
+      "main": [
+        [
+          {
+            "node": "Create GitHub Repo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create GitHub Repo": {
+      "main": [
+        [
+          {
+            "node": "Prepare File Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare File Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload Files to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Files to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Deploy to Netlify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy to Netlify": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
+```
