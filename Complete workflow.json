@@ -1,0 +1,217 @@
+
+{
+  "name": "Website Preview Generator - Complete",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-preview",
+        "responseMode": "lastNode"
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "business_slug",
+              "value": "={{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}"
+            },
+            {
+              "name": "location_string",
+              "value": "={{ $json.location.city }}, {{ $json.location.state }}"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.unsplash.com/search/photos",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $('Webhook').item.json.business_type }} professional"
+            },
+            {
+              "name": "per_page",
+              "value": "5"
+            },
+            {
+              "name": "orientation",
+              "value": "landscape"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Unsplash",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: 'anthropic/claude-sonnet-4', messages: [{ role: 'user', content: 'Generate complete Astro website. Business: ' + $('Webhook').item.json.business_name + ', Type: ' + $('Webhook').item.json.business_type + ', Location: ' + $('Set Variables').item.json.location_string + '. Include all files, real content, SEO. Return JSON with files array.' }], temperature: 0.7, max_tokens: 16000 } }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "4",
+      "name": "Claude Generate Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { contents: [{ parts: [{ text: 'Generate 3 blog posts (800-1000 words each) for ' + $('Webhook').item.json.business_name + ' (' + $('Webhook').item.json.business_type + ' in ' + $('Set Variables').item.json.location_string + '). Return JSON: { blog_posts: [{ title, description, date, content }] }' }] }], generationConfig: { temperature: 0.8, maxOutputTokens: 8000 } } }}",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Gemini Blog Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const claudeResponse = $('Claude Generate Site').item.json;\nconst geminiResponse = $('Gemini Blog Posts').item.json;\n\nlet claudeFiles;\ntry {\n  const content = claudeResponse.choices[0].message.content;\n  claudeFiles = JSON.parse(content).files;\n} catch (error) {\n  throw new Error('Failed to parse Claude: ' + error.message);\n}\n\nlet blogPosts;\ntry {\n  const content = geminiResponse.candidates[0].content.parts[0].text;\n  const cleanContent = content.replace(/```json\\n?/g, '').replace(/```\\n?/g, '');\n  blogPosts = JSON.parse(cleanContent).blog_posts;\n} catch (error) {\n  throw new Error('Failed to parse Gemini: ' + error.message);\n}\n\nblogPosts.forEach((post, i) => {\n  const slug = post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');\n  claudeFiles.push({\n    path: `src/content/blog/${slug}.md`,\n    content: `---\\ntitle: \"${post.title}\"\\ndescription: \"${post.description}\"\\ndate: ${post.date}\\n---\\n\\n${post.content}`\n  });\n});\n\nconst businessSlug = $('Set Variables').item.json.business_slug;\n\nreturn {\n  json: {\n    files: claudeFiles,\n    repo_name: `${businessSlug}-preview`,\n    business_name: $('Webhook').item.json.business_name,\n    file_count: claudeFiles.length\n  }\n};"
+      },
+      "id": "6",
+      "name": "Combine Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/user/repos",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $('Combine Files').item.json.repo_name, description: 'Preview for ' + $('Combine Files').item.json.business_name, private: false, auto_init: true } }}",
+        "options": {}
+      },
+      "id": "7",
+      "name": "Create GitHub Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const repoFullName = $('Create GitHub Repo').item.json.full_name;\nconst files = $('Combine Files').item.json.files;\n\nreturn files.map(file => ({\n  json: {\n    repo: repoFullName,\n    path: file.path,\n    content: Buffer.from(file.content).toString('base64'),\n    message: `Add ${file.path}`\n  }\n}));"
+      },
+      "id": "8",
+      "name": "Prepare Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/{{ $json.repo }}/contents/{{ $json.path }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { message: $json.message, content: $json.content } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 10,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "id": "9",
+      "name": "Upload to GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.netlify.com/api/v1/sites",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $('Combine Files').item.json.repo_name, repo: { provider: 'github', repo: $('Create GitHub Repo').item.json.full_name }, build_settings: { cmd: 'npm run build', dir: 'dist' } } }}",
+        "options": {}
+      },
+      "id": "10",
+      "name": "Deploy Netlify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1850, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'success', preview_url: $('Deploy Netlify').item.json.url, github_repo: $('Create GitHub Repo').item.json.html_url, business_name: $('Combine Files').item.json.business_name, files: $('Combine Files').item.json.file_count, message: 'Preview ready!' } }}"
+      },
+      "id": "11",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set Variables", "type": "main", "index": 0}]]
+    },
+    "Set Variables": {
+      "main": [[
+        {"node": "Unsplash", "type": "main", "index": 0},
+        {"node": "Claude Generate Site", "type": "main", "index": 0},
+        {"node": "Gemini Blog Posts", "type": "main", "index": 0}
+      ]]
+    },
+    "Unsplash": {
+      "main": [[{"node": "Claude Generate Site", "type": "main", "index": 0}]]
+    },
+    "Claude Generate Site": {
+      "main": [[{"node": "Combine Files", "type": "main", "index": 0}]]
+    },
+    "Gemini Blog Posts": {
+      "main": [[{"node": "Combine Files", "type": "main", "index": 0}]]
+    },
+    "Combine Files": {
+      "main": [[{"node": "Create GitHub Repo", "type": "main", "index": 0}]]
+    },
+    "Create GitHub Repo": {
+      "main": [[{"node": "Prepare Upload", "type": "main", "index": 0}]]
+    },
+    "Prepare Upload": {
+      "main": [[{"node": "Upload to GitHub", "type": "main", "index": 0}]]
+    },
+    "Upload to GitHub": {
+      "main": [[{"node": "Deploy Netlify", "type": "main", "index": 0}]]
+    },
+    "Deploy Netlify": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  }
+}
