@@ -1,0 +1,162 @@
+{
+  "name": "Website Generator - Local Claude Code",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-preview",
+        "responseMode": "lastNode"
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "business_slug",
+              "value": "={{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}"
+            },
+            {
+              "name": "location_string",
+              "value": "={{ $json.location.city }}, {{ $json.location.state }}"
+            },
+            {
+              "name": "work_dir",
+              "value": "=/tmp/{{ $json.business_name.toLowerCase().replace(/[^a-z0-9]+/g, '-') }}"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Set Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/user/repos",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $('Set Variables').item.json.business_slug + '-preview', description: 'Preview for ' + $('Webhook').item.json.business_name, private: false, auto_init: false } }}",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Create GitHub Repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "=git clone {{ $('Create GitHub Repo').item.json.clone_url }} {{ $('Set Variables').item.json.work_dir }}"
+      },
+      "id": "4",
+      "name": "Clone Repo",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd {{ $('Set Variables').item.json.work_dir }} && claude-code \"Generate complete Astro 4.x website. Business: {{ $('Webhook').item.json.business_name }}, Type: {{ $('Webhook').item.json.business_type }}, Location: {{ $('Set Variables').item.json.location_string }}. Include: all config files, components, pages (home, about, services, contact, blog), layouts, content collections. Use Tailwind CSS. Add LocalBusiness schema. Write real engaging content (not placeholders). Commit each file as you create it with descriptive messages. Make it production-ready.\""
+      },
+      "id": "5",
+      "name": "Generate Site with Claude Code",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd {{ $('Set Variables').item.json.work_dir }} && claude-code \"Generate 3 blog posts in src/content/blog/ directory. Each post 800-1000 words, markdown format with frontmatter (title, description, date). Topics relevant to {{ $('Webhook').item.json.business_type }} in {{ $('Set Variables').item.json.location_string }}. Educational, locally relevant. Commit each post.\""
+      },
+      "id": "6",
+      "name": "Generate Blog Posts",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "command": "=cd {{ $('Set Variables').item.json.work_dir }} && git push origin main"
+      },
+      "id": "7",
+      "name": "Push to GitHub",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.netlify.com/api/v1/sites",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { name: $('Set Variables').item.json.business_slug + '-preview', repo: { provider: 'github', repo: $('Create GitHub Repo').item.json.full_name }, build_settings: { cmd: 'npm run build', dir: 'dist' } } }}",
+        "options": {}
+      },
+      "id": "8",
+      "name": "Deploy to Netlify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "command": "=rm -rf {{ $('Set Variables').item.json.work_dir }}"
+      },
+      "id": "9",
+      "name": "Cleanup Temp Dir",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'success', preview_url: $('Deploy to Netlify').item.json.url, github_repo: $('Create GitHub Repo').item.json.html_url, business_name: $('Webhook').item.json.business_name, message: 'Preview site generated with Claude Code!' } }}"
+      },
+      "id": "10",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set Variables", "type": "main", "index": 0}]]
+    },
+    "Set Variables": {
+      "main": [[{"node": "Create GitHub Repo", "type": "main", "index": 0}]]
+    },
+    "Create GitHub Repo": {
+      "main": [[{"node": "Clone Repo", "type": "main", "index": 0}]]
+    },
+    "Clone Repo": {
+      "main": [[{"node": "Generate Site with Claude Code", "type": "main", "index": 0}]]
+    },
+    "Generate Site with Claude Code": {
+      "main": [[{"node": "Generate Blog Posts", "type": "main", "index": 0}]]
+    },
+    "Generate Blog Posts": {
+      "main": [[{"node": "Push to GitHub", "type": "main", "index": 0}]]
+    },
+    "Push to GitHub": {
+      "main": [[{"node": "Deploy to Netlify", "type": "main", "index": 0}]]
+    },
+    "Deploy to Netlify": {
+      "main": [[{"node": "Cleanup Temp Dir", "type": "main", "index": 0}]]
+    },
+    "Cleanup Temp Dir": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  }
+}
